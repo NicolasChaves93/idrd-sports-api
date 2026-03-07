@@ -19,55 +19,38 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
 
     @Override
     public User save(User user) {
+        UserJpaEntity entity = toJpaEntity(user);
+        UserJpaEntity saved = userRepository.save(entity);
+        return toDomain(saved);
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email).map(this::toDomain);
+    }
+
+    @Override
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id).map(this::toDomain);
+    }
+
+    private UserJpaEntity toJpaEntity(User user) {
         UserJpaEntity entity = new UserJpaEntity();
         entity.setId(user.getId());
         entity.setName(user.getName());
         entity.setEmail(user.getEmail());
         entity.setRole(user.getRole());
-        entity.setPassword(user.getPassword()); // BAD: saving plain password
-
-        UserJpaEntity saved = userRepository.save(entity);
-
-        // BAD: Code duplication - same mapping logic
-        User result = new User();
-        result.setId(saved.getId());
-        result.setName(saved.getName());
-        result.setEmail(saved.getEmail());
-        result.setRole(saved.getRole());
-        result.setPassword(saved.getPassword());
-
-        return result;
+        entity.setPassword(user.getPassword());
+        return entity;
     }
 
-    @Override
-    public Optional<User> findByEmail(String email) {
-        Optional<UserJpaEntity> entity = userRepository.findByEmail(email);
-        if (entity.isPresent()) {
-            // BAD: Code duplication
-            User user = new User();
-            user.setId(entity.get().getId());
-            user.setName(entity.get().getName());
-            user.setEmail(entity.get().getEmail());
-            user.setRole(entity.get().getRole());
-            user.setPassword(entity.get().getPassword());
-            return Optional.of(user);
-        }
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<User> findById(Long id) {
-        Optional<UserJpaEntity> entity = userRepository.findById(id);
-        if (entity.isPresent()) {
-            // BAD: Code duplication (third time!)
-            User user = new User();
-            user.setId(entity.get().getId());
-            user.setName(entity.get().getName());
-            user.setEmail(entity.get().getEmail());
-            user.setRole(entity.get().getRole());
-            user.setPassword(entity.get().getPassword());
-            return Optional.of(user);
-        }
-        return Optional.empty();
+    private User toDomain(UserJpaEntity entity) {
+        User user = new User();
+        user.setId(entity.getId());
+        user.setName(entity.getName());
+        user.setEmail(entity.getEmail());
+        user.setRole(entity.getRole());
+        user.setPassword(entity.getPassword());
+        return user;
     }
 }

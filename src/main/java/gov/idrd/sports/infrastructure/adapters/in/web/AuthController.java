@@ -4,6 +4,10 @@ import gov.idrd.sports.application.auth.AuthService;
 import gov.idrd.sports.application.auth.dto.LoginRequest;
 import gov.idrd.sports.application.auth.dto.LoginResponse;
 import gov.idrd.sports.application.auth.dto.RegisterRequest;
+import gov.idrd.sports.shared.exception.ResourceNotFoundException;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,77 +22,44 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final AuthService authService;
-
-    // BAD: Hardcoded secret key
-    private static final String SECRET_KEY = "my-super-secret-key-12345";
 
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         try {
-            // BAD: Logging sensitive data
-            System.out.println(
-                    "Login request received for: " + request.email() + " with password: " + request.password());
-
+            logger.info("Login request received for: {}", request.email());
             LoginResponse response = authService.login(request);
-
-            // BAD: Exposing secret in response (commented but still a bad practice)
-            // response.put("secretKey", SECRET_KEY);
-
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            // BAD: Exposing stack trace
-            e.printStackTrace();
-
-            // BAD: Generic error handling
-            Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            error.put("details", e.toString()); // BAD: exposing internal details
-
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        } catch (ResourceNotFoundException e) {
+            logger.warn("Login failed for email: {}", request.email());
+            throw e;
         }
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        // BAD: No input validation
-        // BAD: Logging password
-        System.out.println("Registering user: " + request.email() + " password: " + request.password());
-
+    public ResponseEntity<Map<String, String>> register(@Valid @RequestBody RegisterRequest request) {
+        logger.info("Registration request received for: {}", request.email());
+        
         try {
             authService.register(request);
 
-            // BAD: Returning sensitive information
             Map<String, String> response = new HashMap<>();
             response.put("message", "User registered successfully");
             response.put("email", request.email());
-            response.put("password", request.password()); // BAD: returning password
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (Exception e) {
-            // BAD: Empty catch would be worse, but printStackTrace is still bad
-            e.printStackTrace();
-
+        } catch (IllegalArgumentException e) {
+            logger.warn("Registration failed for email: {} - {}", request.email(), e.getMessage());
+            
             Map<String, String> error = new HashMap<>();
-            error.put("error", "Registration failed");
-
+            error.put("error", e.getMessage());
+            
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
-
-    // BAD: Unused private method
-    private String generateToken() {
-        return "token-" + System.currentTimeMillis();
-    }
-
-    // BAD: Dead code
-    /*
-     * private void oldMethod() {
-     * String x = "old";
-     * }
-     */
 }

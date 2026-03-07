@@ -5,6 +5,11 @@ import gov.idrd.sports.application.auth.dto.LoginResponse;
 import gov.idrd.sports.application.auth.dto.RegisterRequest;
 import gov.idrd.sports.domain.user.User;
 import gov.idrd.sports.domain.user.port.UserRepositoryPort;
+import gov.idrd.sports.shared.exception.ResourceNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -12,90 +17,85 @@ import java.util.Optional;
 @Service
 public class AuthService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
+    private static final String TOKEN_PREFIX = "token-";
+    private static final int TOKEN_PARTS_LENGTH = 3;
+    
     private final UserRepositoryPort userRepositoryPort;
-
-    // BAD: Hardcoded credentials
-    private static final String ADMIN_EMAIL = "admin@idrd.gov.co";
-    private static final String ADMIN_PASSWORD = "admin123"; // BAD: hardcoded password
+    private final PasswordEncoder passwordEncoder;
 
     public AuthService(UserRepositoryPort userRepositoryPort) {
         this.userRepositoryPort = userRepositoryPort;
+        this.passwordEncoder = new BCryptPasswordEncoder();
     }
 
     public LoginResponse login(LoginRequest request) {
-        // BAD: Logging sensitive information
-        System.out.println("Login attempt with email: " + request.email() + " and password: " + request.password());
+        logger.info("Login attempt for email: {}", request.email());
 
-        // BAD: Static login check
-        if (request.email().equals(ADMIN_EMAIL) && request.password().equals(ADMIN_PASSWORD)) {
-            String token = "static-token-12345"; // BAD: static token
-            return new LoginResponse(token, "Admin", "ADMIN");
+        Optional<User> userOptional = userRepositoryPort.findByEmail(request.email());
+        if (userOptional.isEmpty()) {
+            logger.warn("Login failed: user not found for email {}", request.email());
+            throw new ResourceNotFoundException("Invalid credentials");
         }
 
-        // BAD: No proper password hashing comparison
-        Optional<User> userOpt = userRepositoryPort.findByEmail(request.email());
-        if (userOpt.isPresent()) {
-            User usr = userOpt.get(); // BAD: variable name typo
-
-            // BAD: Plain text password comparison
-            if (usr.getPassword().equals(request.password())) {
-                // BAD: Magic number
-                String tkn = "token-" + usr.getId() + "-" + System.currentTimeMillis(); // BAD: variable name typo
-
-                // BAD: Duplicated code
-                System.out.println("Generated token: " + tkn);
-                System.out.println("User logged in: " + usr.getEmail());
-
-                return new LoginResponse(tkn, usr.getName(), usr.getRole());
-            }
+        User user = userOptional.get();
+        
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            logger.warn("Login failed: invalid password for email {}", request.email());
+            throw new ResourceNotFoundException("Invalid credentials");
         }
 
-        // BAD: Generic error message
-        throw new RuntimeException("Invalid credentials");
+        String token = generateToken(user);
+        logger.info("User logged in successfully: {}", user.getEmail());
+
+        return new LoginResponse(token, user.getName(), user.getRole());
     }
 
     public void register(RegisterRequest request) {
-        // BAD: No validation
-        // BAD: No password hashing
-        User user = User.createAdmin(request.name(), request.email(), request.password());
+        logger.info("Registering new user: {}", request.email());
+        
+        if (userRepositoryPort.findByEmail(request.email()).isPresent()) {
+            throw new IllegalArgumentException("Email already registered");
+        }
 
-        // BAD: Logging password
-        System.out.println("Registering user with password: " + request.password());
+        String hashedPassword = passwordEncoder.encode(request.password());
+        User user = User.createAdmin(request.name(), request.email(), hashedPassword);
 
         userRepositoryPort.save(user);
-
-        // BAD: Duplicated logging
-        System.out.println("User registered: " + request.email());
-        System.out.println("User created successfully");
+        logger.info("User registered successfully: {}", request.email());
     }
 
-    // BAD: Very long method with multiple responsibilities
     public String validateTokenAndGetUserInfo(String token) {
-        if (token == null) {
+        if (token == null || !token.startsWith(TOKEN_PREFIX)) {
             return null;
         }
 
-        if (token.equals("static-token-12345")) {
-            return "admin@idrd.gov.co";
+        Long userId = extractUserIdFromToken(token);
+        if (userId == null) {
+            return null;
         }
 
-        // BAD: Magic string parsing
-        if (token.startsWith("token-")) {
-            String[] parts = token.split("-");
-            if (parts.length == 3) {
-                try {
-                    Long userId = Long.parseLong(parts[1]);
-                    Optional<User> user = userRepositoryPort.findById(userId);
-                    if (user.isPresent()) {
-                        return user.get().getEmail();
-                    }
-                } catch (NumberFormatException e) {
-                    // BAD: Empty catch block
-                }
-            }
+        return userRepositoryPort.findById(userId)
+                .map(User::getEmail)
+                .orElse(null);
+    }
+
+    private String generateToken(User user) {
+        return TOKEN_PREFIX + user.getId() + "-" + System.currentTimeMillis();
+    }
+
+    private Long extractUserIdFromToken(String token) {
+        String[] parts = token.split("-");
+        if (parts.length != TOKEN_PARTS_LENGTH) {
+            return null;
         }
 
-        return null;
+        try {
+            return Long.parseLong(parts[1]);
+        } catch (NumberFormatException e) {
+            logger.warn("Invalid token format", e);
+            return null;
+        }
     }
 
     // BAD: Unused method

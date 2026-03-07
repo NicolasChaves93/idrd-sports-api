@@ -25,7 +25,7 @@ public class UserJpaEntity {
     private String role;
 
     @Column(nullable = false)
-    private String password; // BAD: storing plain password in database
+    private String password;
 
     public Long getId() {
         return id;
