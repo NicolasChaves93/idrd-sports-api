@@ -30,39 +30,53 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        logger.info("Login attempt for email: {}", request.email());
+        String email = request.email();
+        if (logger.isInfoEnabled()) {
+            logger.info("Login attempt for email: {}", email);
+        }
 
-        Optional<User> userOptional = userRepositoryPort.findByEmail(request.email());
+        Optional<User> userOptional = userRepositoryPort.findByEmail(email);
         if (userOptional.isEmpty()) {
-            logger.warn("Login failed: user not found for email {}", request.email());
+            if (logger.isWarnEnabled()) {
+                logger.warn("Login failed: user not found for email {}", email);
+            }
             throw new ResourceNotFoundException("Invalid credentials");
         }
 
         User user = userOptional.get();
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            logger.warn("Login failed: invalid password for email {}", request.email());
+            if (logger.isWarnEnabled()) {
+                logger.warn("Login failed: invalid password for email {}", email);
+            }
             throw new ResourceNotFoundException("Invalid credentials");
         }
 
         String token = generateToken(user);
-        logger.info("User logged in successfully: {}", user.getEmail());
+        if (logger.isInfoEnabled()) {
+            logger.info("User logged in successfully: {}", user.getEmail());
+        }
 
         return new LoginResponse(token, user.getName(), user.getRole());
     }
 
     public void register(RegisterRequest request) {
-        logger.info("Registering new user: {}", request.email());
+        String email = request.email();
+        if (logger.isInfoEnabled()) {
+            logger.info("Registering new user: {}", email);
+        }
 
-        if (userRepositoryPort.findByEmail(request.email()).isPresent()) {
+        if (userRepositoryPort.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("Email already registered");
         }
 
         String hashedPassword = passwordEncoder.encode(request.password());
-        User user = User.createAdmin(request.name(), request.email(), hashedPassword);
+        User user = User.createAdmin(request.name(), email, hashedPassword);
 
         userRepositoryPort.save(user);
-        logger.info("User registered successfully: {}", request.email());
+        if (logger.isInfoEnabled()) {
+            logger.info("User registered successfully: {}", email);
+        }
     }
 
     public String validateTokenAndGetUserInfo(String token) {
@@ -93,15 +107,10 @@ public class AuthService {
         try {
             return Long.parseLong(parts[1]);
         } catch (NumberFormatException e) {
-            logger.warn("Invalid token format", e);
+            if (logger.isWarnEnabled()) {
+                logger.warn("Invalid token format", e);
+            }
             return null;
         }
-    }
-
-    // BAD: Unused method
-    private void metodNoUsado() {
-        String x = "unused";
-        int y = 0;
-        y = y + 1;
     }
 }

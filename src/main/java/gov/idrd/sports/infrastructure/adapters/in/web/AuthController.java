@@ -31,30 +31,40 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        String email = request.email();
         try {
-            logger.info("Login request received for: {}", request.email());
+            if (logger.isInfoEnabled()) {
+                logger.info("Login request received for: {}", email);
+            }
             LoginResponse response = authService.login(request);
             return ResponseEntity.ok(response);
         } catch (ResourceNotFoundException e) {
-            logger.warn("Login failed for email: {}", request.email());
+            if (logger.isWarnEnabled()) {
+                logger.warn("Login failed for email: {}", email);
+            }
             throw e;
         }
     }
 
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> register(@Valid @RequestBody RegisterRequest request) {
-        logger.info("Registration request received for: {}", request.email());
+        String email = request.email();
+        if (logger.isInfoEnabled()) {
+            logger.info("Registration request received for: {}", email);
+        }
 
         try {
             authService.register(request);
 
             Map<String, String> response = new HashMap<>();
             response.put("message", "User registered successfully");
-            response.put("email", request.email());
+            response.put("email", email);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
-            logger.warn("Registration failed for email: {} - {}", request.email(), e.getMessage());
+            if (logger.isWarnEnabled()) {
+                logger.warn("Registration failed for email: {} - {}", email, e.getMessage());
+            }
 
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
