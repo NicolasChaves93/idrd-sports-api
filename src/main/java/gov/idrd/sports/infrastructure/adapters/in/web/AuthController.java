@@ -44,7 +44,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> register(@Valid @RequestBody RegisterRequest request) {
         logger.info("Registration request received for: {}", request.email());
-        
+
         try {
             authService.register(request);
 
@@ -55,10 +55,10 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
             logger.warn("Registration failed for email: {} - {}", request.email(), e.getMessage());
-            
+
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
-            
+
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }

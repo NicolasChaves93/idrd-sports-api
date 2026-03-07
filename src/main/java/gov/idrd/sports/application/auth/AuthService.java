@@ -20,7 +20,7 @@ public class AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private static final String TOKEN_PREFIX = "token-";
     private static final int TOKEN_PARTS_LENGTH = 3;
-    
+
     private final UserRepositoryPort userRepositoryPort;
     private final PasswordEncoder passwordEncoder;
 
@@ -39,7 +39,7 @@ public class AuthService {
         }
 
         User user = userOptional.get();
-        
+
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             logger.warn("Login failed: invalid password for email {}", request.email());
             throw new ResourceNotFoundException("Invalid credentials");
@@ -53,7 +53,7 @@ public class AuthService {
 
     public void register(RegisterRequest request) {
         logger.info("Registering new user: {}", request.email());
-        
+
         if (userRepositoryPort.findByEmail(request.email()).isPresent()) {
             throw new IllegalArgumentException("Email already registered");
         }
