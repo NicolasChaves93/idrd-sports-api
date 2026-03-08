@@ -6,11 +6,13 @@ import gov.idrd.sports.application.auth.dto.LoginResponse;
 import gov.idrd.sports.application.auth.dto.RegisterRequest;
 import gov.idrd.sports.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -25,14 +27,13 @@ class AuthControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private AuthService authService;
 
     @Test
     @WithMockUser
     void login_WithValidCredentials_ShouldReturnOk() throws Exception {
         // Given
-        LoginRequest request = new LoginRequest("admin@idrd.gov.co", "password123");
         LoginResponse response = new LoginResponse("token-123", "Admin User", "ADMIN");
 
         when(authService.login(any(LoginRequest.class))).thenReturn(response);
@@ -67,40 +68,19 @@ class AuthControllerTest {
         verify(authService).login(any(LoginRequest.class));
     }
 
-    @Test
+    @ParameterizedTest
+    @CsvSource({
+            "'{\"email\":\"invalid-email\",\"password\":\"password123\"}'",
+            "'{\"email\":\"\",\"password\":\"password123\"}'",
+            "'{\"email\":\"admin@idrd.gov.co\",\"password\":\"\"}'"
+    })
     @WithMockUser
-    void login_WithInvalidEmail_ShouldReturnBadRequest() throws Exception {
+    void login_WithInvalidData_ShouldReturnBadRequest(String jsonContent) throws Exception {
         // When & Then
         mockMvc.perform(post("/api/auth/login")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"invalid-email\",\"password\":\"password123\"}"))
-                .andExpect(status().isBadRequest());
-
-        verify(authService, never()).login(any(LoginRequest.class));
-    }
-
-    @Test
-    @WithMockUser
-    void login_WithBlankEmail_ShouldReturnBadRequest() throws Exception {
-        // When & Then
-        mockMvc.perform(post("/api/auth/login")
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"\",\"password\":\"password123\"}"))
-                .andExpect(status().isBadRequest());
-
-        verify(authService, never()).login(any(LoginRequest.class));
-    }
-
-    @Test
-    @WithMockUser
-    void login_WithBlankPassword_ShouldReturnBadRequest() throws Exception {
-        // When & Then
-        mockMvc.perform(post("/api/auth/login")
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"admin@idrd.gov.co\",\"password\":\"\"}"))
+                .content(jsonContent))
                 .andExpect(status().isBadRequest());
 
         verify(authService, never()).login(any(LoginRequest.class));
@@ -142,40 +122,19 @@ class AuthControllerTest {
         verify(authService).register(any(RegisterRequest.class));
     }
 
-    @Test
+    @ParameterizedTest
+    @CsvSource({
+            "'{\"name\":\"John Doe\",\"email\":\"invalid-email\",\"password\":\"password123\"}'",
+            "'{\"name\":\"\",\"email\":\"john@idrd.gov.co\",\"password\":\"password123\"}'",
+            "'{\"name\":\"John Doe\",\"email\":\"john@idrd.gov.co\",\"password\":\"123\"}'"
+    })
     @WithMockUser
-    void register_WithInvalidEmail_ShouldReturnBadRequest() throws Exception {
+    void register_WithInvalidData_ShouldReturnBadRequest(String jsonContent) throws Exception {
         // When & Then
         mockMvc.perform(post("/api/auth/register")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"John Doe\",\"email\":\"invalid-email\",\"password\":\"password123\"}"))
-                .andExpect(status().isBadRequest());
-
-        verify(authService, never()).register(any(RegisterRequest.class));
-    }
-
-    @Test
-    @WithMockUser
-    void register_WithBlankName_ShouldReturnBadRequest() throws Exception {
-        // When & Then
-        mockMvc.perform(post("/api/auth/register")
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"\",\"email\":\"john@idrd.gov.co\",\"password\":\"password123\"}"))
-                .andExpect(status().isBadRequest());
-
-        verify(authService, never()).register(any(RegisterRequest.class));
-    }
-
-    @Test
-    @WithMockUser
-    void register_WithShortPassword_ShouldReturnBadRequest() throws Exception {
-        // When & Then
-        mockMvc.perform(post("/api/auth/register")
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"John Doe\",\"email\":\"john@idrd.gov.co\",\"password\":\"123\"}"))
+                .content(jsonContent))
                 .andExpect(status().isBadRequest());
 
         verify(authService, never()).register(any(RegisterRequest.class));

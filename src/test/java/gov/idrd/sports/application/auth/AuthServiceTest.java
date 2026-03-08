@@ -9,6 +9,8 @@ import gov.idrd.sports.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -18,7 +20,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -155,30 +156,14 @@ class AuthServiceTest {
         verify(userRepositoryPort, never()).findById(any());
     }
 
-    @Test
-    void validateTokenAndGetUserInfo_WithInvalidTokenPrefix_ShouldReturnNull() {
-        // Given
-        String token = "invalid-1-123456789";
-
+    @ParameterizedTest
+    @ValueSource(strings = { "invalid-1-123456789", "token-invalidUserId-123456789", "token-1" })
+    void validateTokenAndGetUserInfo_WithInvalidTokens_ShouldReturnNull(String token) {
         // When
         String result = authService.validateTokenAndGetUserInfo(token);
 
         // Then
         assertThat(result).isNull();
-        verify(userRepositoryPort, never()).findById(any());
-    }
-
-    @Test
-    void validateTokenAndGetUserInfo_WithInvalidTokenFormat_ShouldReturnNull() {
-        // Given
-        String token = "token-invalidUserId-123456789";
-
-        // When
-        String result = authService.validateTokenAndGetUserInfo(token);
-
-        // Then
-        assertThat(result).isNull();
-        verify(userRepositoryPort, never()).findById(any());
     }
 
     @Test
@@ -195,18 +180,5 @@ class AuthServiceTest {
         // Then
         assertThat(result).isNull();
         verify(userRepositoryPort).findById(userId);
-    }
-
-    @Test
-    void validateTokenAndGetUserInfo_WithInvalidTokenParts_ShouldReturnNull() {
-        // Given
-        String token = "token-1";
-
-        // When
-        String result = authService.validateTokenAndGetUserInfo(token);
-
-        // Then
-        assertThat(result).isNull();
-        verify(userRepositoryPort, never()).findById(any());
     }
 }
